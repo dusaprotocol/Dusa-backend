@@ -1,0 +1,28 @@
+lockfileVersion: '6.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+dependencies:
+  node-xlsx:
+    specifier: ^0.24.0
+    version: 0.24.0
+
+packages:
+
+  /node-xlsx@0.24.0:
+    resolution: {integrity: sha512-1olwK48XK9nXZsyH/FCltvGrQYvXXZuxVitxXXv2GIuRm51aBi1+5KwR4rWM4KeO61sFU+00913WLZTD+AcXEg==}
+    engines: {node: '>=10.0.0'}
+    hasBin: true
+    dependencies:
+      xlsx: '@cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz'
+    dev: false
+
+  '@cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz':
+    resolution: {tarball: https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz}
+    name: xlsx
+    version: 0.20.2
+    engines: {node: '>=0.8'}
+    hasBin: true
+    dev: false

@@ -1,0 +1,75 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  # manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Tests run against a throwaway MySQL created for each run: never point CI (or a
+    # repository secret) at a shared or production database.
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test
+          MYSQL_DATABASE: dusa_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -ptest --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      DATABASE_URL: mysql://root:test@127.0.0.1:3306/dusa_test
+      # Price sanity tests read real mainnet prices (read-only, public RPC)
+      CHAIN_ID: 1
+      CHAIN_URL: https://mainnet.massa.net/api/v2/
+      GRPC_HOST: mainnet.massa.net
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Copy env file
+        run: cp .env.example .env
+
+      # The root postinstall pulls the schema from the database (`prisma db pull`),
+      # which fails on an empty test database: install each folder without it and create
+      # the schema from prisma/schema.prisma instead. Only the indexer runs its own
+      # postinstall (`buf generate`).
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          (cd api && pnpm install --frozen-lockfile --ignore-scripts)
+          (cd indexer && pnpm install --frozen-lockfile)
+          (cd scripts && pnpm install --ignore-scripts)
+
+      - name: Create test database schema
+        run: |
+          npx prisma generate
+          npx prisma db push --skip-generate
+
+      - name: Testing
+        run: npm test -- --run

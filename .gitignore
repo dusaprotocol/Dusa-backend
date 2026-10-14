@@ -1,0 +1,10 @@
+node_modules
+.env
+.env.local
+.env.mainnet
+.env.buildnet
+*.log
+dataset*.*
+*.csv
+scripts/*.json
+.DS_Store

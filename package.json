@@ -1,0 +1,56 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "postinstall": "prisma db pull && prisma generate && pnpm install:api && pnpm install:indexer && pnpm install:script",
+    "install:api": "cd api && pnpm i",
+    "install:indexer": "cd indexer && pnpm i",
+    "install:script": "cd scripts && pnpm i",
+    "start:api": "cd api && pnpm start",
+    "start:indexer": "cd indexer && pnpm start",
+    "test": "vitest --no-threads",
+    "reset": "prisma migrate reset --force && prisma db push",
+    "prettier": "prettier  '**/*.ts' --check '!indexer/gen/**'",
+    "prettier:fix": "prettier '**/*.ts' --write '!indexer/gen/**'",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "mainnet": "cp .env.mainnet .env && npx prisma generate",
+    "buildnet": "cp .env.buildnet .env && npx prisma generate",
+    "local": "cp .env.local .env && npx prisma generate",
+    "clear": "rm -rf node_modules && rm -rf api/node_modules && rm -rf indexer/node_modules",
+    "seed": "cd api && tsx src/seed.ts",
+    "visualize": "depcruise ./ --include-only \"api|common|crons|indexer\" --output-type dot --no-config | dot -T svg > dependencygraph.svg",
+    "reward": "tsx ./scripts/src/rewards.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@dusalabs/sdk": "^1.1.15",
+    "@massalabs/massa-web3": "5.3.1-dev.20261001162419",
+    "@prisma/client": "^5.8.1",
+    "dotenv": "^16.4.1",
+    "node-cache": "^5.1.2",
+    "tsx": "^4.7.0",
+    "winston": "^3.11.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@dusalabs/sdk>@massalabs/massa-web3": "5.3.1-dev.20261001162419"
+    }
+  },
+  "devDependencies": {
+    "dependency-cruiser": "^16.9.0",
+    "eslint": "9.x",
+    "globals": "^15.2.0",
+    "prettier": "^3.4.2",
+    "prisma": "^5.8.1",
+    "tslib": "^2.6.2",
+    "typescript": "^4.9.5",
+    "typescript-eslint": "^7.9.0",
+    "vitest": "^0.34.6",
+    "vitest-mock-extended": "^1.3.1"
+  }
+}

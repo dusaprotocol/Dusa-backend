@@ -1,0 +1,526 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model User {
+  address      String          @id
+  referralCode String?         @unique
+  discordId    String?         @unique
+  swapTxs      Swap[]
+  liquidityTxs Liquidity[]
+  dcas         DCA[]
+  orders       Order[]
+  analytics    UserAnalytics[]
+  referred     Referral[]
+  multisigs    Multisig[]
+}
+
+model Referral {
+  userAddress      String   @unique
+  godfatherAddress String
+  createdAt        DateTime @default(now())
+  godfather        User     @relation(fields: [godfatherAddress], references: [address])
+}
+
+model UserAnalytics {
+  date          DateTime
+  totalValue    Float
+  userAddress   String
+  user          User           @relation(fields: [userAddress], references: [address], onDelete: Cascade)
+  tokenBalances TokenBalance[]
+  poolBalances  PoolBalance[]
+
+  @@id([userAddress, date])
+  @@index([date], map: "date")
+}
+
+model TokenBalance {
+  id                       Int           @id @default(autoincrement())
+  tokenAddress             String
+  balance                  String
+  value                    Float
+  userAnalyticsUserAddress String
+  userAnalyticsDate        DateTime
+  userAnalytics            UserAnalytics @relation(fields: [userAnalyticsUserAddress, userAnalyticsDate], references: [userAddress, date])
+}
+
+model PoolBalance {
+  id                       Int           @id @default(autoincrement())
+  poolAddress              String
+  balance0                 String
+  balance1                 String
+  fees0                    String
+  fees1                    String
+  value                    Float
+  userAnalyticsUserAddress String
+  userAnalyticsDate        DateTime
+  userAnalytics            UserAnalytics @relation(fields: [userAnalyticsUserAddress, userAnalyticsDate], references: [userAddress, date])
+}
+
+model Token {
+  address        String        @id
+  name           String
+  symbol         String
+  decimals       Int
+  poolsAsToken0  Pool[]        @relation("pool0")
+  poolsAsToken1  Pool[]        @relation("pool1")
+  tokensAsReward RewardToken[]
+}
+
+model Pool {
+  address       String           @id
+  binStep       Int
+  token0Address String
+  token1Address String
+  whitelisted   Boolean          @default(false)
+  version       Pool_version     @default(V1)
+  token0        Token            @relation("pool0", fields: [token0Address], references: [address], onDelete: Cascade)
+  token1        Token            @relation("pool1", fields: [token1Address], references: [address], onDelete: Cascade)
+  analytics     Analytics[]
+  swapTxs       Swap[]
+  liquidityTxs  Liquidity[]
+  orders        Order[]
+  rewardPools   RewardPool[]
+  daily         DailyAnalytics[]
+}
+
+model Analytics {
+  date         DateTime
+  volume       Int
+  fees         Float
+  token0Locked String
+  token1Locked String
+  usdLocked    Int
+  close        Float
+  high         Float
+  low          Float
+  open         Float
+  poolAddress  String
+  volume0      String
+  volume1      String
+  fees0        String   @default("0")
+  fees1        String   @default("0")
+  pool         Pool     @relation(fields: [poolAddress], references: [address], onDelete: Cascade)
+
+  @@id([poolAddress, date])
+  @@index([poolAddress, date(sort: Desc)], map: "pool_date_desc")
+  @@index([date], map: "date")
+}
+
+model DailyAnalytics {
+  date         DateTime
+  volume       Int
+  fees         Float
+  token0Locked String
+  token1Locked String
+  usdLocked    Int
+  close        Float
+  high         Float
+  low          Float
+  open         Float
+  poolAddress  String
+  volume0      String
+  volume1      String
+  fees0        String   @default("0")
+  fees1        String   @default("0")
+  pool         Pool     @relation(fields: [poolAddress], references: [address], onDelete: Cascade)
+
+  @@id([poolAddress, date])
+  @@index([poolAddress, date(sort: Desc)], map: "pool_date_desc")
+}
+
+model TokenTransfer {
+  from         String
+  to           String
+  tokenAddress String
+  amount       String
+  timestamp    DateTime
+  txHash       String
+  usdValue     Float
+  indexInSlot  Int
+
+  @@id([txHash, indexInSlot])
+}
+
+model BalanceChange {
+  userAddress  String
+  tokenAddress String
+  timestamp    DateTime
+  blockHash    String
+  indexInSlot  Int
+  balance      String
+
+  @@id([blockHash, indexInSlot])
+}
+
+model Swap {
+  poolAddress      String
+  swapForY         Boolean
+  amountIn         String
+  amountOut        String
+  timestamp        DateTime
+  txHash           String
+  usdValue         Float
+  userAddress      String
+  indexInSlot      Int
+  feesIn           String
+  feesUsdValue     Float
+  endId            Int
+  startId          Int
+  token0Value      Float?
+  token1Value      Float?
+  updatedBinVolume Boolean  @default(false)
+  updatedMakerFees Boolean  @default(false)
+  pool             Pool     @relation(fields: [poolAddress], references: [address], onDelete: Cascade)
+  user             User     @relation(fields: [userAddress], references: [address])
+
+  @@id([txHash, indexInSlot])
+  @@index([poolAddress, timestamp(sort: Desc)], map: "pool_timestamp_desc")
+  @@index([userAddress, timestamp(sort: Desc)], map: "user_timestamp_desc")
+  @@index([timestamp(sort: Desc)], map: "timestamp_desc")
+}
+
+model FullSwap {
+  tokenIn      String
+  tokenOut     String
+  amountIn     String
+  amountOut    String
+  timestamp    DateTime
+  txHash       String   @id
+  usdValue     Float
+  userAddress  String
+  feesIn       String
+  feesUsdValue Float
+
+  @@index([timestamp], map: "timestamp")
+  @@index([userAddress], map: "userAddress")
+  @@index([userAddress, tokenIn, tokenOut], map: "userAddress_tokenIn_tokenOut")
+}
+
+model Liquidity {
+  poolAddress String
+  amount0     String
+  amount1     String
+  timestamp   DateTime
+  txHash      String
+  lowerBound  Int
+  upperBound  Int
+  usdValue    Float
+  userAddress String
+  indexInSlot Int      @default(1)
+  token0Value Float?
+  token1Value Float?
+  pool        Pool     @relation(fields: [poolAddress], references: [address], onDelete: Cascade)
+  user        User     @relation(fields: [userAddress], references: [address])
+
+  @@id([txHash, indexInSlot])
+  @@index([userAddress, timestamp(sort: Desc)], map: "user_timestamp_desc")
+  @@index([poolAddress, timestamp(sort: Desc)], map: "pool_timestamp_desc")
+}
+
+model DCA {
+  id            Int            @id
+  txHash        String
+  userAddress   String
+  status        Status
+  amountEachDCA String
+  endTime       DateTime
+  interval      Int
+  nbOfDCA       Int
+  startTime     DateTime
+  tokenIn       String
+  tokenOut      String
+  execution     DCAExecution[]
+  user          User           @relation(fields: [userAddress], references: [address])
+}
+
+model DCAExecution {
+  amountIn      String
+  amountOut     String
+  tokenInValue  Float
+  thread        Int
+  period        Int
+  blockId       String
+  dcaId         Int
+  tokenOutValue Float
+  dca           DCA    @relation(fields: [dcaId], references: [id], onDelete: Cascade)
+
+  @@id([dcaId, blockId])
+}
+
+model Order {
+  id                Int
+  txHash            String
+  poolAddress       String
+  amountIn          String
+  userAddress       String
+  status            Status
+  binId             Int
+  isSellOrder       Boolean
+  limitOrderAddress String
+  timestamp         DateTime        @default(now())
+  user              User            @relation(fields: [userAddress], references: [address])
+  pool              Pool            @relation(fields: [poolAddress], references: [address])
+  orderExecution    OrderExecution?
+
+  @@id([id, limitOrderAddress])
+}
+
+model OrderExecution {
+  amountIn          String
+  thread            Int
+  period            Int
+  orderId           Int
+  blockId           String
+  limitOrderAddress String
+  order             Order  @relation(fields: [orderId, limitOrderAddress], references: [id, limitOrderAddress], onDelete: Cascade)
+
+  @@id([orderId, limitOrderAddress, blockId])
+  @@unique([orderId, limitOrderAddress])
+}
+
+model Maker {
+  address                 String
+  date                    DateTime
+  poolAddress             String
+  accruedFeesX            String
+  accruedFeesY            String
+  accruedFeesL            String
+  accruedFeesUsd          Float
+  volume                  Float
+  accruedFeesUsdEffective Float    @default(0)
+
+  @@id([address, poolAddress, date])
+  @@index([poolAddress, date], map: "date")
+}
+
+model RewardPool {
+  epoch        Int
+  poolAddress  String
+  pool         Pool          @relation(fields: [poolAddress], references: [address], onDelete: Cascade)
+  rewardTokens RewardToken[]
+
+  @@id([poolAddress, epoch])
+}
+
+model RewardToken {
+  amount            String
+  address           String
+  rewardEpoch       Int
+  rewardPoolAddress String
+  rewardPool        RewardPool @relation(fields: [rewardPoolAddress, rewardEpoch], references: [poolAddress, epoch], onDelete: Cascade)
+  token             Token      @relation(fields: [address], references: [address], onDelete: Cascade)
+
+  @@id([rewardPoolAddress, rewardEpoch, address])
+}
+
+model Bin {
+  date        DateTime
+  binId       Int
+  poolAddress String
+  volumeUsd   Float
+  feesUsd     Float
+
+  @@id([poolAddress, binId, date])
+}
+
+model TokenAnalytics {
+  date         DateTime
+  volume       Int
+  fees         Float
+  close        Float
+  high         Float
+  low          Float
+  open         Float
+  tokenAddress String
+
+  @@id([tokenAddress, date])
+  @@index([date], map: "date")
+}
+
+model Log {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  message   Bytes
+  data      Bytes
+}
+
+model Block {
+  id            String         @id
+  period        Int
+  thread        Int
+  createdAt     DateTime       @default(now())
+  operations    Operation[]
+  ledgerChanges LedgerChange[]
+}
+
+model Operation {
+  id             String   @id
+  targetAddress  String
+  targetFunction String
+  value          BigInt
+  maxGas         BigInt
+  indexInBlock   Int      @default(0)
+  data           Bytes
+  blockId        String
+  callerAddress  String
+  createdAt      DateTime @default(now())
+  events         Event[]
+  block          Block    @relation(fields: [blockId], references: [id])
+
+  @@index([blockId], map: "blockId")
+  @@index([callerAddress], map: "callerAddress")
+  @@index([targetAddress], map: "targetAddress")
+}
+
+model Event {
+  emitterAddress String    @db.VarChar(64)
+  operationId    String    @db.VarChar(64)
+  data           Bytes
+  indexInSlot    Int
+  createdAt      DateTime  @default(now())
+  operation      Operation @relation(fields: [operationId], references: [id])
+
+  @@id([emitterAddress, operationId, indexInSlot])
+  @@index([operationId], map: "operationId")
+}
+
+model LedgerChange {
+  address     String   @db.VarChar(64)
+  key         Bytes
+  value       Bytes
+  blockId     String   @db.VarChar(64)
+  index       Int
+  createdAt   DateTime @default(now())
+  key191Chars String   @default("")
+  block       Block    @relation(fields: [blockId], references: [id])
+
+  @@id([address, blockId, index])
+  @@index([address, key191Chars, createdAt], map: "address_key191Chars_createdAt")
+}
+
+model Points {
+  userAddress   String
+  date          DateTime
+  totalScore    Float    @default(0)
+  discordScore  Float    @default(0)
+  makerScore    Float    @default(0)
+  referralScore Float    @default(0)
+  swapScore     Float    @default(0)
+  points        Float    @default(0)
+
+  @@id([userAddress, date])
+}
+
+model Rewards {
+  userAddress               String
+  percentOfTotalFees        Float
+  makerScore                Float
+  makerRank                 Int
+  rewardPercentage          Float
+  rewardToken               String
+  makerRewards              Float
+  makerRewardsRaw           String
+  makerRewardsWithStreak    Float
+  makerRewardsWithStreakRaw String
+  pairName                  String
+  rewardEpoch               Int
+  rewardAmount              Float
+  weeklyStreak              Int
+  poolAddress               String
+  accruedFeesX              String
+  accruedFeesY              String
+  accruedFeesL              String
+  accruedFeesUsd            Float
+  accruedFeesUsdEffective   Float
+
+  @@id([userAddress, rewardEpoch, poolAddress])
+}
+
+model Distribution {
+  id          Int      @id @default(autoincrement())
+  userAddress String
+  token       String
+  amount      String
+  txHash      String?  @unique
+  sentAt      DateTime
+  rewardEpoch Int
+}
+
+model VoterRewards {
+  userAddress String
+  poolAddress String
+  token       String
+  amount      String
+  veEpoch     Int
+
+  @@id([userAddress, poolAddress, token, veEpoch])
+}
+
+model ProtocolFees {
+  poolAddress String
+  amount0     String
+  amount1     String
+  epoch       Int      @default(74)
+  date        DateTime @default(now())
+
+  @@id([poolAddress, date])
+  @@unique([poolAddress, epoch], map: "_ProtocolFees_poolAddress_epoch_unique")
+}
+
+model Bribes {
+  poolAddress String
+  token       String
+  amount      String
+  by          String
+  epoch       Int
+  date        DateTime @default(now())
+
+  @@id([poolAddress, token, epoch])
+}
+
+model Emissions {
+  poolAddress String
+  amount      String
+  epoch       Int      @default(74)
+  date        DateTime @default(now())
+
+  @@id([poolAddress, date])
+  @@unique([poolAddress, epoch], map: "_Emissions_poolAddress_epoch_unique")
+}
+
+model Multisig {
+  address String @id
+  owners  User[]
+}
+
+model MultisigToUser {
+  A String
+  B String
+
+  @@unique([A, B], map: "_MultisigToUser_AB_unique")
+  @@index([B], map: "_MultisigToUser_B_index")
+  @@map("_MultisigToUser")
+}
+
+enum Status {
+  ACTIVE
+  STOPPED
+  ERRORED_QUOTER
+  ERRORED_TRANSFER
+  ENDED
+  CANCELED
+  CLAIMED
+}
+
+enum Pool_version {
+  V0
+  V1
+  V2
+}

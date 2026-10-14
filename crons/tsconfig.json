@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+      "esModuleInterop": true,
+      "module": "es2022",
+      "preserveConstEnums": true,
+      "moduleResolution": "Node",
+      "strict": true,
+      "noImplicitAny": true,
+      "sourceMap": true,
+      "target": "es2022",
+    },
+    "experimentalDecorators": true,
+  }

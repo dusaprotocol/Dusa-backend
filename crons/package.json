@@ -1,0 +1,16 @@
+{
+  "name": "crons",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start:leaderboard": "tsx leaderboard/index.ts",
+    "start:portfolio": "tsx portfolio.ts",
+    "start:pools": "tsx poolTicks.ts",
+    "start:makers": "tsx makers.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT"
+}
