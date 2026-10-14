@@ -17,7 +17,6 @@
     "cors": "^2.8.5",
     "express": "^4.22.3",
     "express-async-errors": "^3.1.1",
-    "express-rate-limit": "^7.5.0",
     "swagger-ui-express": "^5.0.1",
     "trpc-openapi": "^1.2.0",
     "trpc-playground": "^1.0.4",
