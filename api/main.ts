@@ -77,8 +77,10 @@ app.get(
     }),
   }),
   async (req, res) => {
-    // console.log("symbols", req.query.symbol);
     const symbolInfo = await resolveSymbol(req.query.symbol);
+    // Not 200, so apicache doesn't store it: arbitrary symbols can't fill the cache
+    if (!symbolInfo)
+      return res.status(404).send({ s: "error", errmsg: "unknown_symbol" });
     res.send(symbolInfo);
   }
 );

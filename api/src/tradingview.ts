@@ -2,6 +2,9 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../common/db";
 import logger from "../../common/logger";
 import { launchTimestamp, TICKS_PER_DAY } from "../../common/utils";
+import { isAddressValid } from "../../common/methods";
+
+const MAX_HOPS = 3; // swap routes in the interface use at most 3 pools
 
 interface BarsData {
   t: number[];
@@ -54,13 +57,28 @@ export const getConfig = () => {
 
 // Symbol resolve
 // https://www.tradingview.com/charting-library-docs/latest/connecting_data/UDF/#symbol-resolve
-export const resolveSymbol = async (symbol: string) => {
+/**
+ * A symbol is 1 to MAX_HOPS distinct pool addresses joined by ":".
+ * @returns the pool addresses, or undefined if the symbol is malformed
+ */
+export const parseSymbol = (symbol: string): string[] | undefined => {
   const poolAddresses = symbol.split(":");
-  // symbol = symbol.split(":")[0];
+  const unique = new Set(poolAddresses);
+  if (poolAddresses.length > MAX_HOPS || unique.size !== poolAddresses.length)
+    return undefined;
+  if (!poolAddresses.every(isAddressValid)) return undefined;
+  return poolAddresses;
+};
+
+// Returns undefined for unknown pools, so callers don't answer (or cache) arbitrary symbols
+export const resolveSymbol = async (symbol: string) => {
+  const poolAddresses = parseSymbol(symbol);
+  if (!poolAddresses) return undefined;
   const pool = await prisma.pool.findMany({
     where: { address: { in: poolAddresses } },
     include: { token0: true, token1: true },
   });
+  if (pool.length !== poolAddresses.length) return undefined;
   const description = pool
     .map((p) => `${p.token0.symbol}/${p.token1.symbol}`)
     .join(", ");
@@ -102,8 +120,6 @@ interface GetBarsOptions {
 
 // Bars
 // https://www.tradingview.com/charting-library-docs/latest/connecting_data/UDF/#bars
-const MAX_HOPS = 3; // swap routes in the interface use at most 3 pools
-
 export const getBars = async (opts: GetBarsOptions): Promise<BarsResponse> => {
   const { resolution, from, to, countback, includeEmptyCandles } = opts;
   let take = countback;
