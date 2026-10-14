@@ -40,7 +40,6 @@ import {
   Web3Provider,
 } from "@massalabs/massa-web3";
 import cacheMiddleware from "./middlewares";
-import { getRoles, getUser } from "./discord";
 import { normalize } from "./tradingview";
 import {
   JELLY,
@@ -1354,7 +1353,11 @@ export const appRouter = router({
     }),
   // discord binded to user
   // no cache
-  getDiscordId: t.procedure
+  // Whether this wallet has a Discord account linked. It deliberately doesn't return
+  // the Discord ID or profile: that would let anyone link any wallet to a Discord
+  // identity. The user's own profile and roles can be read in the browser with the
+  // Discord access token they get when logging in (scopes identify + guilds.members.read).
+  isDiscordLinked: t.procedure
     .input(z.object({ userAddress: addressSchema }))
     .query(async ({ input, ctx }) => {
       const { userAddress } = input;
@@ -1363,19 +1366,7 @@ export const appRouter = router({
         where: { address: userAddress },
         select: { discordId: true },
       });
-      return user?.discordId;
-    }),
-  getDiscordUser: t.procedure
-    .input(z.object({ discordId: discordIdSchema }))
-    .query(async ({ input }) => {
-      const { discordId } = input;
-      return await getUser(discordId);
-    }),
-  getDiscordRoles: t.procedure
-    .input(z.object({ discordId: discordIdSchema }))
-    .query(async ({ input }) => {
-      const { discordId } = input;
-      return await getRoles(discordId);
+      return !!user?.discordId;
     }),
 
   // points leaderboard
