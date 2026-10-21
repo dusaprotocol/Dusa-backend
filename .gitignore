@@ -8,3 +8,4 @@ dataset*.*
 *.csv
 scripts/*.json
 .DS_Store
+governance_transfers_sent.json
