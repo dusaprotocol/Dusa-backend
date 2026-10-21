@@ -1,6 +1,6 @@
 import { Token as PrismaToken } from "@prisma/client";
 import { handlePrismaError, prisma } from "../../common/db";
-import { readFileSync, writeFile } from "fs";
+import { existsSync, readFileSync, writeFile, writeFileSync } from "fs";
 import {
   EventDecoder,
   Fraction,
@@ -57,6 +57,7 @@ import {
   U64,
   Account,
   Web3Provider,
+  OperationStatus,
 } from "@massalabs/massa-web3";
 import * as T from "../src/rewards";
 import { MASSA_EXEC_ERROR } from "../../common/eventPoller";
@@ -145,6 +146,34 @@ const saveJSONFile = (data: JSONData, filename: string) => {
     JSON.stringify(data, null, 2),
     (err) => err && console.error(err)
   );
+};
+
+// TOKEN TRANSFERS
+
+// Ops sent by previous runs: the indexer may not have stored them yet, and a
+// rerun must not pay the same transfer twice
+const SENT_TRANSFERS_FILE = "./governance_transfers_sent.json";
+const sentTransfers: Record<string, string> = existsSync(SENT_TRANSFERS_FILE)
+  ? JSON.parse(readFileSync(SENT_TRANSFERS_FILE, "utf-8"))
+  : {};
+const saveSentTransfer = (key: string, opId: string) => {
+  sentTransfers[key] = opId;
+  writeFileSync(SENT_TRANSFERS_FILE, JSON.stringify(sentTransfers, null, 2));
+};
+const wasSent = async (key: string): Promise<boolean> => {
+  const opId = sentTransfers[key];
+  if (!opId) return false;
+  const status = await web3Client.getOperationStatus(opId);
+  if (
+    status === OperationStatus.Error ||
+    status === OperationStatus.SpeculativeError
+  )
+    return false;
+  if (status === OperationStatus.NotFound)
+    // expired, or executed and pruned from the node history: check it by hand
+    // and remove its entry from SENT_TRANSFERS_FILE to send it again
+    console.warn(`${key}: op ${opId} not found, skipping`);
+  return true;
 };
 
 // COMPARE JSON
@@ -243,11 +272,14 @@ const compareJSON = async (file1: string, file2: string) => {
           )
         )
           continue;
+        const sentKey = `${reward.address}:${user}:${diff}`;
+        if (await wasSent(sentKey)) continue;
 
         const tx = await new IERC20(reward.address, web3Client).transfer(
           user,
           diff
         );
+        saveSentTransfer(sentKey, tx.id);
         console.log(
           `Transfer ${printTA(rewardToken, diff)} ${rewardToken.symbol} ($${diffValue}) to ${user}`,
           tx.id

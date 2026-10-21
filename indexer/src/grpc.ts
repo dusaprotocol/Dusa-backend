@@ -185,8 +185,9 @@ export const retrieveBlocks = async () => {
 
 const MAX_BLOCKS_PER_REQUEST = 50;
 
-// The node caps a datastore keys query at 500 keys, and the gRPC query of the
-// generated client has no pagination: page through JSON-RPC instead
+// The node caps a datastore keys query at its max_datastore_keys_query (500 by
+// default), and the gRPC query of the generated client has no pagination: page
+// through JSON-RPC instead (massa-web3 reads the node limit from get_status)
 export const getDatastoreKeys = (
   address: string,
   prefix: string
